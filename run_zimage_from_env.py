@@ -97,23 +97,6 @@ def _apply_presets(mode: str, env_path: Path) -> None:
             "INFERENCE_PROMPT": "PROMPT",
             "COMPILE_MODEL": "COMPILE_MODEL",
         }
-    elif mode == "image_edit":
-        mapping = {
-            "IMAGE_EDIT_WIDTH": "WIDTH",
-            "IMAGE_EDIT_HEIGHT": "HEIGHT",
-            "IMAGE_EDIT_STEPS": "STEPS",
-            "IMAGE_EDIT_GUIDANCE_SCALE": "GUIDANCE_SCALE",
-            "IMAGE_EDIT_DTYPE": "DTYPE",
-            "IMAGE_EDIT_DEVICE": "DEVICE",
-            "IMAGE_EDIT_SEED": "SEED",
-            "IMAGE_EDIT_OUTPUT_PATH": "OUTPUT_PATH",
-            "IMAGE_EDIT_STRENGTH": "STRENGTH",
-            "IMAGE_EDIT_USE_SOURCE_SIZE": "USE_SOURCE_SIZE",
-            "IMAGE_EDIT_SOURCE_IMAGE": "SOURCE_IMAGE",
-            "IMAGE_EDIT_MASK_IMAGE": "MASK_IMAGE",
-            "COMPILE_MODEL": "COMPILE_MODEL",
-            "INFERENCE_PROMPT": "PROMPT",
-        }
     else:
         mapping = {
             "BATCH_WIDTH": "WIDTH",
@@ -165,34 +148,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=["single", "batch", "image_edit"],
+        choices=["single", "batch"],
         help="Execution mode. Default: from ZIMAGE_RUN_MODE env var (batch if unset).",
-    )
-    parser.add_argument(
-        "--source-image",
-        default=None,
-        help="Image used for image-edit mode (`IMAGE_EDIT_SOURCE_IMAGE`).",
-    )
-    parser.add_argument(
-        "--mask",
-        default=None,
-        help="Optional mask image for image-edit mode (`IMAGE_EDIT_MASK_IMAGE`).",
-    )
-    parser.add_argument(
-        "--strength",
-        type=float,
-        default=None,
-        help="Image-edit blend strength (`IMAGE_EDIT_STRENGTH`, 0..1).",
-    )
-    parser.add_argument(
-        "--use-source-size",
-        action="store_true",
-        help="Use source image resolution for image-edit output (`IMAGE_EDIT_USE_SOURCE_SIZE=1`).",
-    )
-    parser.add_argument(
-        "--output-path",
-        default=None,
-        help="Image-edit output path override (`IMAGE_EDIT_OUTPUT_PATH`).",
     )
     parser.add_argument(
         "--prompt",
@@ -220,8 +177,8 @@ def main() -> None:
     load_env_file(env_path)
 
     mode = (args.mode or _get_env_str("ZIMAGE_RUN_MODE", "batch")).strip().lower()
-    if mode not in {"single", "batch", "image_edit"}:
-        raise ValueError(f"Invalid mode: {mode}. Use 'single', 'batch', or 'image_edit'.")
+    if mode not in {"single", "batch"}:
+        raise ValueError(f"Invalid mode: {mode}. Use 'single' or 'batch'.")
 
     _apply_presets(mode, env_path)
 
@@ -235,18 +192,6 @@ def main() -> None:
 
     if args.prompt:
         os.environ["INFERENCE_PROMPT"] = args.prompt
-
-    if mode == "image_edit":
-        if args.source_image:
-            os.environ["IMAGE_EDIT_SOURCE_IMAGE"] = args.source_image
-        if args.mask:
-            os.environ["IMAGE_EDIT_MASK_IMAGE"] = args.mask
-        if args.strength is not None:
-            os.environ["IMAGE_EDIT_STRENGTH"] = str(args.strength)
-        if args.use_source_size:
-            os.environ["IMAGE_EDIT_USE_SOURCE_SIZE"] = "1"
-        if args.output_path:
-            os.environ["IMAGE_EDIT_OUTPUT_PATH"] = args.output_path
 
     print(f"Running Z-Image {mode} mode using values from: {env_path}")
     result = subprocess.run(
