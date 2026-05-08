@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import time
 import warnings
+from typing import Optional
 
 import torch
 
@@ -145,6 +146,34 @@ def _resolve_device(prefix: str = "INFERENCE") -> str:
     return _resolve_device_with_auto()
 
 
+def _supports_torch_compile() -> bool:
+    try:
+        import triton  # type: ignore
+
+        return True
+    except Exception:
+        return False
+
+
+def _resolve_compile(env_name: str, fallback_env: Optional[str] = None) -> bool:
+    if fallback_env is None:
+        fallback_env = ""
+    requested_default = False
+    if fallback_env:
+        requested_default = _get_env_bool(fallback_env, False)
+    enabled = _get_env_bool(env_name, requested_default)
+    if not enabled:
+        return False
+    if _supports_torch_compile():
+        return True
+
+    print(
+        "Torch compile requested but Triton is not available. Falling back to eager execution to avoid "
+        "runtime failure. Install Triton for compile mode."
+    )
+    return False
+
+
 def _resolve_device_with_auto() -> str:
     if torch.cuda.is_available():
         print("Chosen device: cuda")
@@ -219,7 +248,7 @@ def main():
     seed = _get_env_int("INFERENCE_SEED", 42)
     dtype = _resolve_dtype()
     device = _resolve_device()
-    compile = _get_env_bool("COMPILE_MODEL", False)
+    compile = _resolve_compile("COMPILE_MODEL")
 
     output_target = _build_output_path(
         output_path,

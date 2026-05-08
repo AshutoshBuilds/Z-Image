@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import sys
 import time
+from typing import Optional
 
 import torch
 
@@ -122,6 +123,34 @@ def _resolve_device(override_name: str = "BATCH_DEVICE") -> str:
     return _resolve_device_with_auto()
 
 
+def _supports_torch_compile() -> bool:
+    try:
+        import triton  # type: ignore
+
+        return True
+    except Exception:
+        return False
+
+
+def _resolve_compile(env_name: str, fallback_env: Optional[str] = None) -> bool:
+    if fallback_env is None:
+        fallback_env = ""
+    requested_default = False
+    if fallback_env:
+        requested_default = _get_env_bool(fallback_env, False)
+    requested = _get_env_bool(env_name, requested_default)
+    if not requested:
+        return False
+    if _supports_torch_compile():
+        return True
+
+    print(
+        "Torch compile requested but Triton is not available. Falling back to eager execution to avoid "
+        "runtime failure. Install Triton for compile mode."
+    )
+    return False
+
+
 def _resolve_device_with_auto() -> str:
     if torch.cuda.is_available():
         print("Chosen device: cuda")
@@ -153,7 +182,7 @@ def read_prompts(path: str) -> list[str]:
     prompt_path = Path(path)
     if not prompt_path.exists():
         raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
-    with prompt_path.open("r", encoding="utf-8") as f:
+    with prompt_path.open("r", encoding="utf-8-sig") as f:
         prompts = [line.strip() for line in f if line.strip()]
     if not prompts:
         raise ValueError(f"No prompts found in {prompt_path}")
@@ -228,7 +257,7 @@ def main():
         verify=False,  # set True to verify with md5
     )
     dtype = _resolve_dtype()
-    compile = _get_env_bool("BATCH_COMPILE_MODEL", _get_env_bool("COMPILE_MODEL", False))
+    compile = _resolve_compile("BATCH_COMPILE_MODEL", fallback_env="COMPILE_MODEL")
     height = _get_env_int("BATCH_HEIGHT", _get_env_int("INFERENCE_HEIGHT", 1024))
     width = _get_env_int("BATCH_WIDTH", _get_env_int("INFERENCE_WIDTH", 1024))
     num_inference_steps = _get_env_int("BATCH_STEPS", _get_env_int("INFERENCE_STEPS", 8))
