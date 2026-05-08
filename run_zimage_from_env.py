@@ -233,6 +233,9 @@ def main() -> None:
         raise FileNotFoundError(f"Cannot run target script: {target}")
     os.environ["ZIMAGE_RUN_MODE"] = mode
 
+    if args.prompt:
+        os.environ["INFERENCE_PROMPT"] = args.prompt
+
     if mode == "image_edit":
         if args.source_image:
             os.environ["IMAGE_EDIT_SOURCE_IMAGE"] = args.source_image
@@ -244,8 +247,6 @@ def main() -> None:
             os.environ["IMAGE_EDIT_USE_SOURCE_SIZE"] = "1"
         if args.output_path:
             os.environ["IMAGE_EDIT_OUTPUT_PATH"] = args.output_path
-        if args.prompt:
-            os.environ["INFERENCE_PROMPT"] = args.prompt
 
     print(f"Running Z-Image {mode} mode using values from: {env_path}")
     result = subprocess.run(

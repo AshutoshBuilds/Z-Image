@@ -88,19 +88,24 @@ def _resolve_device(override_name: str = "BATCH_DEVICE") -> str:
             print("Chosen device: cpu")
             return "cpu"
 
-    if override in {"cuda", "cude"}:
+    if override == "cuda":
         if torch.cuda.is_available():
             print("Chosen device override: cuda")
             return "cuda"
-        raise RuntimeError("CUDA override requested but torch.cuda.is_available() is False")
-    if override in {"cpu", "mps"}:
-        if override == "mps" and torch.backends.mps.is_available():
+        raise RuntimeError(
+            f"CUDA override requested but torch.cuda.is_available() is {torch.cuda.is_available()}"
+        )
+    if override == "mps":
+        if torch.backends.mps.is_available():
             print("Chosen device override: mps")
             return "mps"
-        if override == "cpu":
-            print("Chosen device override: cpu")
-            return "cpu"
-        raise RuntimeError("MPS override requested but torch.backends.mps.is_available() is False")
+        raise RuntimeError(
+            "MPS override requested but torch.backends.mps.is_available() is "
+            f"{torch.backends.mps.is_available()}"
+        )
+    if override == "cpu":
+        print("Chosen device override: cpu")
+        return "cpu"
     if override == "tpu":
         try:
             import torch_xla.core.xla_model as xm
@@ -156,7 +161,6 @@ def read_prompts(path: str) -> list[str]:
 
 
 PROMPTS_FILE = os.environ.get("PROMPTS_FILE", "prompts/prompt1.txt")
-PROMPTS = read_prompts(PROMPTS_FILE)
 
 
 def slugify(text: str, max_len: int = 60) -> str:
@@ -238,8 +242,9 @@ def main():
     output_prefix = _get_env_str("BATCH_OUTPUT_PREFIX", "prompt")
     output_filename_suffix = _get_env_str("BATCH_OUTPUT_SUFFIX", "").strip("_")
     skip_existing = _get_env_bool("BATCH_SKIP_EXISTING", False)
-    output_dir.mkdir(exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
     device = _resolve_device()
+    prompts = read_prompts(PROMPTS_FILE)
     prompt_source = "PROMPTS_FILE (env)" if "PROMPTS_FILE" in os.environ else "default PROMPTS_FILE"
 
     print("Resolved batch generation settings:")
@@ -260,7 +265,7 @@ def main():
     set_attention_backend(attn_backend)
     print(f"Chosen attention backend: {attn_backend}")
 
-    for idx, prompt in enumerate(PROMPTS, start=1):
+    for idx, prompt in enumerate(prompts, start=1):
         seed = base_seed + idx - 1
         output_path = _build_output_path(
             output_dir=output_dir,
@@ -278,11 +283,11 @@ def main():
             output_filename_suffix=output_filename_suffix,
         )
         if skip_existing and output_path.exists():
-            print(f"[{idx}/{len(PROMPTS)}] Skipping existing {output_path}")
+            print(f"[{idx}/{len(prompts)}] Skipping existing {output_path}")
             continue
         prompt_label = prompt if len(prompt) <= 80 else prompt[:77] + "..."
-        print(f"[{idx}/{len(PROMPTS)}] Generating seed={seed}, prompt={prompt_label}")
-        print(f"[{idx}/{len(PROMPTS)}] Output target: {output_path}")
+        print(f"[{idx}/{len(prompts)}] Generating seed={seed}, prompt={prompt_label}")
+        print(f"[{idx}/{len(prompts)}] Output target: {output_path}")
         generator = torch.Generator(device).manual_seed(seed)
 
         start_time = time.time()
@@ -297,7 +302,7 @@ def main():
         )
         elapsed = time.time() - start_time
         images[0].save(output_path)
-        print(f"[{idx}/{len(PROMPTS)}] Saved {output_path} in {elapsed:.2f} seconds")
+        print(f"[{idx}/{len(prompts)}] Saved {output_path} in {elapsed:.2f} seconds")
 
     print("Done.")
 

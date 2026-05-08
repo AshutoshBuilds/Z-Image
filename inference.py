@@ -132,19 +132,24 @@ def _resolve_device(prefix: str = "INFERENCE") -> str:
             print("Chosen device: cpu")
             return "cpu"
 
-    if override in {"cuda", "cude"}:
+    if override == "cuda":
         if torch.cuda.is_available():
             print("Chosen device override: cuda")
             return "cuda"
-        raise RuntimeError("CUDA override requested but torch.cuda.is_available() is False")
-    if override in {"cpu", "mps"}:
-        if override == "mps" and torch.backends.mps.is_available():
+        raise RuntimeError(
+            f"CUDA override requested but torch.cuda.is_available() is {torch.cuda.is_available()}"
+        )
+    if override == "mps":
+        if torch.backends.mps.is_available():
             print("Chosen device override: mps")
             return "mps"
-        if override == "cpu":
-            print("Chosen device override: cpu")
-            return "cpu"
-        raise RuntimeError("MPS override requested but torch.backends.mps.is_available() is False")
+        raise RuntimeError(
+            "MPS override requested but torch.backends.mps.is_available() is "
+            f"{torch.backends.mps.is_available()}"
+        )
+    if override == "cpu":
+        print("Chosen device override: cpu")
+        return "cpu"
     if override == "tpu":
         try:
             import torch_xla.core.xla_model as xm
