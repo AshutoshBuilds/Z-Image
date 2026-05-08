@@ -209,6 +209,7 @@ __marimo__/
 
 # Z-Image
 ckpts/
+models/
 .isort.cfg
 .pre-commit-config.yaml
 *.DS_Store
