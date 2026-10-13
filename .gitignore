@@ -216,3 +216,10 @@ models/
 
 # Ignore generated images
 /*.png
+# Secrets
+.hf_token
+
+# Training run artifacts
+identity_dataset/checkpoints/
+!identity_dataset/.env
+
